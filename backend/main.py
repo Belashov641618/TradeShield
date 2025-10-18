@@ -9,6 +9,9 @@ from celery.result import AsyncResult
 from sqlalchemy import create_engine
 from typing import Optional
 
+from workers.data_extractor import data_extractor
+from workers.report_creator import report_creator
+
 
 REDIS_HOST          = str(os.getenv("REDIS_HOST",           "localhost"))
 REDIS_PORT          = int(os.getenv("REDIS_PORT",           6379))
@@ -35,8 +38,7 @@ def autocomplete(code:str="", name:str=""):
 
 @app.post("/api/analyze")
 def analyze(code:str, name:str, inn:str):
-    # TODO Импортировать celery_analyze
-    task = celery_analyze.delay(code, name, inn)
+    task = data_extractor.delay(code, name, inn)
     return JSONResponse(dict(job=task.id))
 
 @app.get("/api/result/{job}")
@@ -48,8 +50,7 @@ def result(job:str):
 
 @app.post("/api/report")
 def report(actions:Optional[dict[str,dict[str,str]]]=None):
-    # TODO Импортировать celery_report
-    task = celery_report.delay(actions)
+    task = report_creator.delay(actions)
     return JSONResponse(dict(job=task.id))
 
 @app.get("/api/report/{job}")
