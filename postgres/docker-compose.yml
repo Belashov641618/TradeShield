@@ -23,4 +23,4 @@ services:
     command: [ "python", "init_db.py" ]
 
 volumes:
-  postgres_data:
+  data:
