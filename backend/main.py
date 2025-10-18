@@ -1,13 +1,12 @@
 import os
 import io
 import redis
-import psycopg2
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
 from celery import Celery
 from celery.result import AsyncResult
-from psycopg2.extras import RealDictCursor
+from sqlalchemy import create_engine
 from typing import Optional
 
 
@@ -23,8 +22,7 @@ POSTGRES_PASSWORD   = str(os.getenv("POSTGRES_PASSWORD",    "password"))
 app = FastAPI(title="TradeShield")
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 celery = Celery("tasks", broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0", backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/1")
-connection = psycopg2.connect(host=POSTGRES_HOST, port=POSTGRES_PORT, dbname=POSTGRES_DATABASE, user=POSTGRES_USER, password=POSTGRES_PASSWORD)
-cursor = connection.cursor(cursor_factory=RealDictCursor)
+engine = create_engine(f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}")
 
 
 @app.get("/api/autocomplete")
