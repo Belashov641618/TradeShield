@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  trade-shield-postgres:
+    image: postgres
+    container_name: trade-shield-postgres
+    restart: always
+    environment:
+      POSTGRES_USER:      ${POSTGRES_USER}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD}
+      POSTGRES_DB:        ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - data:/var/lib/postgresql/data
+
+  initialize-trade-shield-postgres:
+    build: ./db
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    command: [ "python", "init_db.py" ]
+
+volumes:
+  postgres_data:
