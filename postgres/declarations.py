@@ -80,10 +80,10 @@ class Countries(Base):
 class Geographic(Base):
     __tablename__ = "geographic"
     id                  = Column(Integer, primary_key=True)
-    good_id             = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"))
+    good_id             = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
     country_id          = Column(Integer, ForeignKey("countries.id"), nullable=False)
     import_share        = Column(Float)
     avg_contract_price  = Column(Float)
     good                = relationship(Goods.__name__, back_populates="geographic")
-    country             = relationship("Country")
+    country             = relationship("Countries")
     updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
