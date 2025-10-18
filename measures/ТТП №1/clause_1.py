@@ -5,11 +5,20 @@ from datetime import datetime, timezone
 __description__ = "Применяемая ставка таможенного тарифа ЕТТ ЕАЭС меньше предельной ставки в отношении кода, установленной обязательствами России в ВТО."
 
 def check(session:Session, code:int) -> dict[str,Union[str,float,list]]:
-    good = session.query(tables.Goods).filter_by(code=code).first()
-    if not good:                    return dict(status="Товар - не найден")
-    if good.current_duty is None:   return dict(status="Применяемая ставка таможенного тарифа ЕТТ ЕАЭС - не найден")
-    if good.vto_duty is None:       return dict(status="Ставка ВТО - не найден")
+    good = tables.Goods.by_code(session, code)
+    if not good: return dict(status="Товар - не найден")
 
-    updated_delta = datetime.now(timezone.utc) - good.updated_at
-    degree = max(min((good.vto_duty-good.current_duty)/good.vto_duty,1.0),-1.0)
+    current_duty, status = good.get_metric("current_duty")
+    if current_duty is None: return {"status":status}
+    vto_duty, status = good.get_metric("vto_duty")
+    if vto_duty is None: return {"status": status}
 
+    degree = (vto_duty.value-current_duty.value)/good.vto_duty
+    degree = max(min(degree,1.0),-1.0)
+
+    now = datetime.now(timezone.utc)
+    return {
+        "status" : "OK",
+        "degree" : degree,
+        "links" : [(metric.metric.ful_name, metric.source, (now-metric.updated).total_seconds()) for metric in (current_duty, vto_duty)]
+    }
