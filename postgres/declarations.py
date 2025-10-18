@@ -9,21 +9,18 @@ Base = declarative_base()
 
 class Codes(Base):
     __tablename__ = "codes"
-    __table_args__ = (UniqueConstraint('code_tn_ved', 'code_okpd2', name='uix_tnved_okpd2'),)
     id          = Column(Integer, primary_key=True)
-    code_tn_ved = Column(BigInteger, nullable=False)
-    name_tn_ved = Column(String, nullable=False)
-    code_okpd2  = Column(String, nullable=False)
-    name_okpd2  = Column(String, nullable=False)
+    code        = Column(BigInteger,    nullable=False)
+    name        = Column(String,        nullable=False)
+    code_okpd2  = Column(String,        nullable=False)
+    name_okpd2  = Column(String,        nullable=False)
     updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class Goods(Base):
     __tablename__ = "goods"
     id                      = Column(Integer, primary_key=True)
-    code_tn_ved             = Column(BigInteger, nullable=False)
-    name_tn_ved             = Column(String, nullable=False)
-    code_okpd2              = Column(String, nullable=False)
-    name_okpd2              = Column(String, nullable=False)
+    code                    = Column(BigInteger, unique=True, nullable=False)
+    name                    = Column(String, nullable=False)
     current_duty            = Column(Float)
     vto_duty                = Column(Float)
     in_pp_1875_group        = Column(Boolean)
