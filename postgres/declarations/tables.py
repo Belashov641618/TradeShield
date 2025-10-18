@@ -38,8 +38,9 @@ class Goods(AbstractTable):
 
 class Metrics(AbstractTable):
     __tablename__ = "metrics"
-    name = Column(String, nullable=False, unique=True)
-    unit = Column(String, nullable=False)
+    name        = Column(String, nullable=False, unique=True)
+    full_name   = Column(String, nullable=False, unique=True)
+    unit        = Column(String, nullable=False)
     goods_metrics = relationship("GoodsMetrics", back_populates="metric", cascade="all, delete-orphan")
 
 class GoodsMetrics(AbstractTable):
