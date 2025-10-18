@@ -14,7 +14,7 @@ from typing import Optional
 REDIS_HOST          = str(os.getenv("REDIS_HOST",           "localhost"))
 REDIS_PORT          = int(os.getenv("REDIS_PORT",           6379))
 POSTGRES_HOST       = str(os.getenv("POSTGRES_HOST",        "localhost"))
-POSTGRES_PORT       = int(os.getenv("POSTGRES_PORT",        6379))
+POSTGRES_PORT       = int(os.getenv("POSTGRES_PORT",        5432))
 POSTGRES_DATABASE   = str(os.getenv("POSTGRES_DATABASE",    "default"))
 POSTGRES_USER       = str(os.getenv("POSTGRES_USER",        "root"))
 POSTGRES_PASSWORD   = str(os.getenv("POSTGRES_PASSWORD",    "password"))
