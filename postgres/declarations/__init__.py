@@ -1,2 +1,2 @@
 from .tables import Base
-from .tables import Codes, Goods, Import, Production, Consumption, Countries, Geographic, Requests, Rarities
+from .tables import Codes, Countries, Goods, Metrics, GoodsMetrics, Requests, Rarities
