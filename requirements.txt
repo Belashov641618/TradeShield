@@ -1,0 +1,6 @@
+redis
+psycopg2
+SQLAlchemy
+fastapi
+pydantic
+celery
