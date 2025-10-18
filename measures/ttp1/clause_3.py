@@ -9,10 +9,10 @@ def check(session:Session, code:int) -> dict[str,Union[str,float,list]]:
     if not good: return {"status": "Товар - не найден"}
     now = datetime.now(timezone.utc)
 
-    production, status = good.get_metric("production_russia")
+    production, status = good.get_metric("production_russia_year")
     if production is None: return {"status": status}
 
-    consumption, status = good.get_metric("consumption_russia")
+    consumption, status = good.get_metric("consumption_russia_year")
     if consumption is None: return {"status": status}
 
     degree = +1.0 if production.value >= consumption.value else -1.0
