@@ -84,3 +84,20 @@ class Geographic(Base):
     good                = relationship(Goods.__name__, back_populates="geographic")
     country             = relationship("Countries")
     updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class Requests(Base):
+    __tablename__ = "requests"
+    id          = Column(Integer, primary_key=True)
+    good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
+    inn         = Column(BigInteger, nullable=False)
+    good        = relationship(Goods.__name__, back_populates="geographic")
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class Rarities(Base):
+    __tablename__ = "rarities"
+    id          = Column(Integer, primary_key=True)
+    good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
+    amplitude   = Column(Float, nullable=False)
+    attenuation = Column(Float, nullable=False)
+    good        = relationship(Goods.__name__, back_populates="geographic")
+    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
