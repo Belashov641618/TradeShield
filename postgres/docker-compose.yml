@@ -15,12 +15,13 @@ services:
       - data:/var/lib/postgresql/data
 
   initialize-trade-shield-postgres:
-    build: ./db
+    build: ../
+    image: trade-shield-image:latest
     depends_on:
-      - postgres
+      - trade-shield-postgres
     environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    command: [ "python", "init_db.py" ]
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@trade-shield-postgres:5432/${POSTGRES_DB}
+    command: [ "python", "initialize.py" ]
 
 volumes:
   data:
