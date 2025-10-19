@@ -2,7 +2,6 @@ import os
 import io
 import redis
 import aioredis
-import json
 import asyncio
 
 from fastapi import FastAPI, WebSocket
@@ -11,7 +10,7 @@ from celery import Celery
 from celery.result import AsyncResult
 from sqlalchemy import create_engine, cast, String, exists
 from sqlalchemy.orm import sessionmaker
-from typing import Optional
+from typing import Optional, Union
 
 from workers import data_extractor
 from workers.report_creator import report_creator
@@ -33,6 +32,7 @@ engine = create_engine(f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWOR
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 session = Session()
+
 
 @app.get("/api/autocomplete")
 def autocomplete(code:str="", name:str=""):
@@ -58,7 +58,6 @@ def autocomplete(code:str="", name:str=""):
 def analyze(code:str, name:str, inn:str):
     task = data_extractor.delay(code, name, inn)
     return JSONResponse(dict(job=task.id))
-
 @app.get("/api/result/{job}")
 def result(job:str):
     task = AsyncResult(job, app=celery)
@@ -66,17 +65,18 @@ def result(job:str):
         return JSONResponse(task.result)
     return JSONResponse(dict(status=task.status))
 
+
 @app.post("/api/report")
-def report(actions:Optional[dict[str,dict[str,str]]]=None):
+def report(actions:dict[str,dict[str,Union[str,dict[str,Union[str,float]],bool,list[tuple[str,str,float]]]]]):
     task = report_creator.delay(actions)
     return JSONResponse(dict(job=task.id))
-
 @app.get("/api/report/{job}")
 def download(job:str):
     task = AsyncResult(job, app=celery)
     if task.ready():
         return StreamingResponse(io.BytesIO(task.result), media_type="application/pdf", headers={"Content-Disposition":"attachment;filename=report.pdf"})
     return JSONResponse(dict(status=task.status))
+
 
 @app.websocket("/ws/{task_id}")
 async def websocket_status(ws:WebSocket, task_id:str):
