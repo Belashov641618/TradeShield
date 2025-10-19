@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Type
 from datetime import datetime, timezone
 from math import exp
 from sqlalchemy.orm import declarative_base, relationship
@@ -41,9 +41,9 @@ class Goods(AbstractTable):
     requests = relationship("Requests", back_populates="good", cascade="all, delete-orphan")
     rarities = relationship("Rarities", back_populates="good", cascade="all, delete-orphan")
     @classmethod
-    def by_code(cls, session, code: int) -> Goods:
+    def by_code(cls, code:int) -> Type[Goods]:
         return session.query(cls).filter_by(code=code).first()
-    def get_metric(self, name:str, country:Optional[str]=None,) -> tuple[Optional[GoodsMetrics],str]:
+    def get_metric(self, name:str, country:Optional[str]=None,) -> tuple[Optional[Type[GoodsMetrics]],str]:
         metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
         if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
         query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
@@ -52,7 +52,7 @@ class Goods(AbstractTable):
         gm = query.first()
         if not gm: return None, f"Для метрики '{metric_obj.full_name}' отсутствуют данные"
         return gm, "ok"
-    def get_metrics(self, name:str, country:Optional[str]=None) -> tuple[Optional[list[GoodsMetrics]],str]:
+    def get_metrics(self, name:str, country:Optional[str]=None) -> tuple[Optional[list[Type[GoodsMetrics]]],str]:
         metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
         if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
         query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
@@ -113,7 +113,7 @@ class Rarities(AbstractTable):
     attenuation = Column(Float, nullable=False)
     good        = relationship("Goods", back_populates="rarities")
     @staticmethod
-    def rarity(good:Goods, trigger:bool=False):
+    def rarity(good:Type[Goods], trigger:bool=False):
         rarity = session.query(Rarities).filter_by(good_id=good.id).first()
         if rarity:
             rarity.amplitude = rarity.amplitude*exp(-(datetime.now(timezone.utc)-rarity.timestamp).total_seconds()/rarity.attenuation) + 1.0 if trigger else 0.0
