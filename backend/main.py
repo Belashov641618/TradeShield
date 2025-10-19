@@ -39,10 +39,13 @@ def autocomplete(code:str="", name:str=""):
     if name != "":      goods = session.query(tables.Goods).filter(cast(tables.Goods.code,String).startswith(name)).all()
     elif code != "":    goods = session.query(tables.Goods).filter(cast(tables.Goods.code,String).startswith(code)).all()
     else:               goods = session.query(tables.Goods).all()
+    print(f"[DEBUG] code='{code}', name='{name}', goods found: {len(goods)}")
+    for g in goods:
+        print(f"[DEBUG] Goods: code={g.code}, name={g.name}")
     code_ = f""
     name_ = f""
-    exists_ = session.query(exists().where(tables.Goods.code == code))
-    if goods is not None:
+    exists_ = session.query(exists().where(tables.Goods.code==int(code))).scalar() if code != "" else False
+    if goods is not None and goods:
         best_rarity, best_good = None, goods[0]
         for good in goods:
             rarity = tables.Rarities.rarity(session, good, trigger=False)
@@ -51,6 +54,7 @@ def autocomplete(code:str="", name:str=""):
                 best_good = good
         code_ = best_good.code
         name_ = best_good.name
+        print(f"[DEBUG] best_good: code={code_}, name={name_}, rarity={best_rarity}")
     return JSONResponse(dict(code=code_,name=name_,exists=exists_))
 
 
