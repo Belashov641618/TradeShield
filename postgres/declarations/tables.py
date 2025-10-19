@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Optional
 
-from click import Tuple
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint, DateTime, Index, func
 

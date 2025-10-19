@@ -10,7 +10,7 @@ def check(session:Session, code:int) -> dict[str,Union[str,float,list]]:
     now = datetime.now(timezone.utc)
     links = []
 
-    in_pprf_1875, status = good.get_metric("in_pprf_1875", country="CN")
+    in_pprf_1875, status = good.get_metric("in_pprf_1875")
     if in_pprf_1875 is None: return {"status": status}
     links.append((in_pprf_1875.metric.full_name, in_pprf_1875.source, (now-in_pprf_1875.updated).total_seconds()))
 
