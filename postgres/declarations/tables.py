@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Optional
+
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint, DateTime, Index, func
 
@@ -40,13 +41,22 @@ class Goods(AbstractTable):
     @classmethod
     def by_code(cls, session, code: int) -> Goods:
         return session.query(cls).filter_by(code=code).first()
-    def get_metric(self, name:str, country:Optional[str]=None, latest:bool=True) -> tuple[Optional[GoodsMetrics],str]:
+    def get_metric(self, name:str, country:Optional[str]=None,) -> tuple[Optional[GoodsMetrics],str]:
         metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
         if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
         query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
         if country: query = query.join(GoodsMetrics.country).filter(Countries.iso2 == country)
-        if latest: query = query.order_by(GoodsMetrics.timestamp.desc())
+        query = query.order_by(GoodsMetrics.timestamp.desc())
         gm = query.first()
+        if not gm: return None, f"Для метрики '{metric_obj.full_name}' отсутствуют данные"
+        return gm, "ok"
+    def get_metrics(self, name:str, country:Optional[str]=None) -> tuple[Optional[list[GoodsMetrics]],str]:
+        metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
+        if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
+        query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
+        if country: query = query.join(GoodsMetrics.country).filter(Countries.iso2 == country)
+        query = query.order_by(GoodsMetrics.timestamp.desc())
+        gm = query.all()
         if not gm: return None, f"Для метрики '{metric_obj.full_name}' отсутствуют данные"
         return gm, "ok"
 
