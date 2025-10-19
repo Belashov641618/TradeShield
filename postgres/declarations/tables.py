@@ -1,103 +1,112 @@
+from __future__ import annotations
+from typing import Optional
+
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint
-from sqlalchemy.sql import func
-from sqlalchemy import DateTime
+from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint, DateTime, Index, func
 
 
 Base = declarative_base()
 
 
-class Codes(Base):
+class AbstractTable(Base):
+    __abstract__ = True
+    id        = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime(timezone=True))
+    updated   = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    source    = Column(String, nullable=False)
+
+class Codes(AbstractTable):
     __tablename__ = "codes"
-    id          = Column(Integer, primary_key=True)
-    code        = Column(BigInteger,    nullable=False)
-    name        = Column(String,        nullable=False)
-    code_okpd2  = Column(String,        nullable=False)
-    name_okpd2  = Column(String,        nullable=False)
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    __table_args__ = (UniqueConstraint('code', 'code_okpd2', name='uix_tnved_okpd2'),)
+    code       = Column(BigInteger, nullable=False)
+    name       = Column(String, nullable=False)
+    code_okpd2 = Column(String, nullable=False)
+    name_okpd2 = Column(String, nullable=False)
 
-class Goods(Base):
-    __tablename__ = "goods"
-    id                      = Column(Integer, primary_key=True)
-    code                    = Column(BigInteger, unique=True, nullable=False)
-    name                    = Column(String, nullable=False)
-    current_duty            = Column(Float)
-    vto_duty                = Column(Float)
-    in_pp_1875_group        = Column(Boolean)
-    requires_certification  = Column(Boolean)
-    excluded_order_4114     = Column(Boolean)
-    imports                 = relationship("Import",        back_populates="good", cascade="all, delete-orphan")
-    production              = relationship("Production",    back_populates="good", cascade="all, delete-orphan")
-    consumption             = relationship("Consumption",   back_populates="good", cascade="all, delete-orphan")
-    geographic              = relationship("Geographic",    back_populates="good", cascade="all, delete-orphan")
-    updated_at              = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-class Import(Base):
-    __tablename__ = "import"
-    id          = Column(Integer, primary_key=True)
-    good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"))
-    year        = Column(Integer, nullable=False)
-    month       = Column(Integer, nullable=False)
-    volume      = Column(Float)
-    unit        = Column(String)
-    good        = relationship(Goods.__name__, back_populates="imports")
-    updated_at  = Column(DateTime(timezone=True),  server_default=func.now(), onupdate=func.now())
-
-class Production(Base):
-    __tablename__ = "production"
-    id          = Column(Integer, primary_key=True)
-    good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"))
-    year        = Column(Integer, nullable=False)
-    month       = Column(Integer, nullable=False)
-    volume      = Column(Float)
-    unit        = Column(String)
-    good        = relationship(Goods.__name__, back_populates="production")
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-class Consumption(Base):
-    __tablename__ = "consumption"
-    id          = Column(Integer, primary_key=True)
-    good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"))
-    year        = Column(Integer, nullable=False)
-    month       = Column(Integer, nullable=False)
-    volume      = Column(Float)
-    unit        = Column(String)
-    good        = relationship(Goods.__name__, back_populates="consumption")
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-class Countries(Base):
+class Countries(AbstractTable):
     __tablename__ = "countries"
-    id              = Column(Integer, primary_key=True)
-    iso2            = Column(String(2), nullable=False, unique=True)
-    name            = Column(String, nullable=False)
-    region          = Column(String)
-    is_unfriendly   = Column(Boolean, default=False)
-    updated_at      = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    iso2       = Column(String(2), nullable=False, unique=True)
+    name       = Column(String, nullable=True)
+    region     = Column(String, nullable=True)
+    unfriendly = Column(Boolean, default=False)
+    metrics = relationship("GoodsMetrics", back_populates="country", cascade="all, delete-orphan")
 
-class Geographic(Base):
-    __tablename__ = "geographic"
-    id                  = Column(Integer, primary_key=True)
-    good_id             = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
-    country_id          = Column(Integer, ForeignKey("countries.id"), nullable=False)
-    import_share        = Column(Float)
-    avg_contract_price  = Column(Float)
-    good                = relationship(Goods.__name__, back_populates="geographic")
-    country             = relationship("Countries")
-    updated_at          = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+class Goods(AbstractTable):
+    __tablename__ = "goods"
+    code = Column(BigInteger, unique=True, nullable=False)
+    name = Column(String, nullable=False)
+    metrics  = relationship("GoodsMetrics", back_populates="good", cascade="all, delete-orphan")
+    requests = relationship("Requests", back_populates="good", cascade="all, delete-orphan")
+    rarities = relationship("Rarities", back_populates="good", cascade="all, delete-orphan")
+    @classmethod
+    def by_code(cls, session, code: int) -> Goods:
+        return session.query(cls).filter_by(code=code).first()
+    def get_metric(self, name:str, country:Optional[str]=None,) -> tuple[Optional[GoodsMetrics],str]:
+        metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
+        if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
+        query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
+        if country: query = query.join(GoodsMetrics.country).filter(Countries.iso2 == country)
+        query = query.order_by(GoodsMetrics.timestamp.desc())
+        gm = query.first()
+        if not gm: return None, f"Для метрики '{metric_obj.full_name}' отсутствуют данные"
+        return gm, "ok"
+    def get_metrics(self, name:str, country:Optional[str]=None) -> tuple[Optional[list[GoodsMetrics]],str]:
+        metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
+        if not metric_obj: return None, f"Метрика '{name}' отсутствует в справочнике Metrics"
+        query = self.metrics.filter(GoodsMetrics.metric_id == metric_obj.id)
+        if country: query = query.join(GoodsMetrics.country).filter(Countries.iso2 == country)
+        query = query.order_by(GoodsMetrics.timestamp.desc())
+        gm = query.all()
+        if not gm: return None, f"Для метрики '{metric_obj.full_name}' отсутствуют данные"
+        return gm, "ok"
 
-class Requests(Base):
-    __tablename__ = "requests"
-    id          = Column(Integer, primary_key=True)
+class Metrics(AbstractTable):
+    __tablename__ = "metrics"
+    name        = Column(String, nullable=False, unique=True)
+    full_name   = Column(String, nullable=False, unique=True)
+    unit        = Column(String, nullable=False)
+    goods_metrics = relationship("GoodsMetrics", back_populates="metric", cascade="all, delete-orphan")
+
+class GoodsMetrics(AbstractTable):
+    __tablename__ = "goods_metrics"
+    __table_args__ = (
+        UniqueConstraint('good_id', 'metric_id', 'country_id', 'timestamp', name='uix_good_metric_country_time'),
+        Index('ix_goods_metrics_good_metric_time', 'good_id', 'metric_id', 'timestamp')
+    )
     good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
-    inn         = Column(BigInteger, nullable=False)
-    good        = relationship(Goods.__name__, back_populates="geographic")
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    metric_id   = Column(Integer, ForeignKey("metrics.id", ondelete="CASCADE"), nullable=False)
+    country_id  = Column(Integer, ForeignKey("countries.id", ondelete="CASCADE"), nullable=True)
+    value_float = Column(Float, nullable=True)
+    value_int   = Column(Integer, nullable=True)
+    value_bool  = Column(Boolean, nullable=True)
+    value_str   = Column(String, nullable=True)
+    country = relationship("Countries", back_populates="metrics")
+    metric  = relationship("Metrics", back_populates="goods_metrics")
+    good    = relationship("Goods", back_populates="metrics")
+    @property
+    def value(self):
+        for v in (self.value_float, self.value_int, self.value_bool, self.value_str):
+            if v is not None:
+                return v
+        return None
+    @value.setter
+    def value(self, v):
+        self.value_float = self.value_int = self.value_bool = self.value_str = None
+        if isinstance(v, float):    self.value_float = v
+        elif isinstance(v, int):    self.value_int = v
+        elif isinstance(v, bool):   self.value_bool = v
+        elif isinstance(v, str):    self.value_str = v
+        else: raise ValueError(f"Unsupported type: {type(v)}")
 
-class Rarities(Base):
+class Requests(AbstractTable):
+    __tablename__ = "requests"
+    good_id = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
+    inn     = Column(BigInteger, nullable=False)
+    good    = relationship("Goods", back_populates="requests")
+
+class Rarities(AbstractTable):
     __tablename__ = "rarities"
-    id          = Column(Integer, primary_key=True)
     good_id     = Column(Integer, ForeignKey("goods.id", ondelete="CASCADE"), nullable=False)
     amplitude   = Column(Float, nullable=False)
     attenuation = Column(Float, nullable=False)
-    good        = relationship(Goods.__name__, back_populates="geographic")
-    updated_at  = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    good        = relationship("Goods", back_populates="rarities")
