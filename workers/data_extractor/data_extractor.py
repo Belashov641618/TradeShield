@@ -47,7 +47,7 @@ def data_extractor(self, code:str, name:str, inn:str) -> dict[str,dict[str,Union
             degree(OPTIONAL): float <число от -1 до +1 -> условие не выполнено или условие выполнено>
             state(OPTIONAL): bool <выполнено ли условие>
     """
-    good = tables.Goods.by_code(session, int(code))
+    good = tables.Goods.by_code(int(code))
     session.add(tables.Requests(
         good=good,
         inn=inn,
