@@ -54,22 +54,8 @@ def data_extractor(self, code:str, name:str, inn:str) -> dict[str,dict[str,Union
         source="frontend",
         timestamp=datetime.now(timezone.utc)
     ))
-    rarity = session.query(tables.Rarities).filter_by(good_id=good.id).first()
-    if rarity:
-        rarity.amplitude = math.exp(-(datetime.now(timezone.utc)-rarity.timestamp).total_seconds()/rarity.attenuation) + 1.0
-        rarity.attenuation = 604800
-        rarity.source = f"frontend inn {inn}"
-        rarity.timestamp = datetime.now(timezone.utc)
-    else:
-        rarity = tables.Rarities(
-            good=good,
-            amplitude=1.0,
-            attenuation=604800,
-            source=f"frontend inn {inn}",
-            timestamp=datetime.now(timezone.utc)
-        )
-        session.add(rarity)
     session.commit()
+    tables.Rarities.rarity(good, trigger=True)
 
     prog = dict(prog=0.0,eta=None,step="Загрузка мер")
     redis_client.publish(f"task_{self.request.id}", dumps(prog))
