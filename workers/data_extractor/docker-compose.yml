@@ -1,0 +1,18 @@
+services:
+  trade-shield-data-extractor:
+    build: ../../
+    image: trade-shield-image:latest
+    container_name: trade-shield-data-extractor
+    restart: always
+    volumes:
+      - ../../:/home/TadeShield
+    working_dir: /home/TadeShield
+    environment:
+      REDIS_HOST:         ${REDIS_HOST}
+      REDIS_PORT:         ${REDIS_PORT}
+      POSTGRES_HOST:      ${POSTGRES_HOST}
+      POSTGRES_PORT:      ${POSTGRES_PORT}
+      POSTGRES_DATABASE:  ${POSTGRES_DB}
+      POSTGRES_USER:      ${POSTGRES_USER}
+      POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD}
+    command: celery -A workers.data_extractor.data_extractor worker --loglevel=info

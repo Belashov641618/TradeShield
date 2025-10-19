@@ -2,10 +2,9 @@ from __future__ import annotations
 from typing import Optional, Type
 from datetime import datetime, timezone
 from math import exp
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, Session
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint, DateTime, Index, func
 
-from workers.data_extractor.data_extractor import session
 
 Base = declarative_base()
 
@@ -41,7 +40,7 @@ class Goods(AbstractTable):
     requests = relationship("Requests", back_populates="good", cascade="all, delete-orphan")
     rarities = relationship("Rarities", back_populates="good", cascade="all, delete-orphan")
     @classmethod
-    def by_code(cls, code:int) -> Type[Goods]:
+    def by_code(cls, session:Session, code:int) -> Type[Goods]:
         return session.query(cls).filter_by(code=code).first()
     def get_metric(self, name:str, country:Optional[str]=None,) -> tuple[Optional[Type[GoodsMetrics]],str]:
         metric_obj = self.metrics.session.query(Metrics).filter_by(name=name).first()
@@ -113,7 +112,7 @@ class Rarities(AbstractTable):
     attenuation = Column(Float, nullable=False)
     good        = relationship("Goods", back_populates="rarities")
     @staticmethod
-    def rarity(good:Type[Goods], trigger:bool=False):
+    def rarity(session:Session, good:Type[Goods], trigger:bool=False):
         rarity = session.query(Rarities).filter_by(good_id=good.id).first()
         if rarity:
             rarity.amplitude = rarity.amplitude*exp(-(datetime.now(timezone.utc)-rarity.timestamp).total_seconds()/rarity.attenuation) + 1.0 if trigger else 0.0

@@ -1,7 +1,20 @@
-FROM python:3.12
-RUN apt-get update && apt-get install -y python3-pip libpq-dev && rm -rf /var/lib/apt/lists/*
+FROM python:3.12-slim
 
+# Системные зависимости
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        curl \
+        build-essential \
+        && rm -rf /var/lib/apt/lists/*
+
+# Копируем requirements
 COPY requirements.txt /home/
-RUN pip3 install --no-cache-dir -r /home/requirements.txt
+
+# Обновляем pip, setuptools и wheel и устанавливаем зависимости
+RUN python -m ensurepip && \
+    python -m pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r /home/requirements.txt
 
 WORKDIR /home

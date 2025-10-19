@@ -16,6 +16,7 @@ from utilities import gitpull, load_clauses
 
 from postgres.declarations import tables
 
+
 REDIS_HOST          = str(os.getenv("REDIS_HOST",           "localhost"))
 REDIS_PORT          = int(os.getenv("REDIS_PORT",           6379))
 POSTGRES_HOST       = str(os.getenv("POSTGRES_HOST",        "localhost"))
@@ -25,7 +26,6 @@ POSTGRES_USER       = str(os.getenv("POSTGRES_USER",        "root"))
 POSTGRES_PASSWORD   = str(os.getenv("POSTGRES_PASSWORD",    "password"))
 
 
-app = FastAPI(title="TradeShield")
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 celery = Celery("tasks", broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0", backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/1")
 
@@ -47,7 +47,7 @@ def data_extractor(self, code:str, name:str, inn:str) -> dict[str,dict[str,Union
             degree(OPTIONAL): float <число от -1 до +1 -> условие не выполнено или условие выполнено>
             state(OPTIONAL): bool <выполнено ли условие>
     """
-    good = tables.Goods.by_code(int(code))
+    good = tables.Goods.by_code(session, int(code))
     session.add(tables.Requests(
         good=good,
         inn=inn,
@@ -55,7 +55,7 @@ def data_extractor(self, code:str, name:str, inn:str) -> dict[str,dict[str,Union
         timestamp=datetime.now(timezone.utc)
     ))
     session.commit()
-    tables.Rarities.rarity(good, trigger=True)
+    tables.Rarities.rarity(session, good, trigger=True)
 
     prog = dict(prog=0.0,eta=None,step="Загрузка мер")
     redis_client.publish(f"task_{self.request.id}", dumps(prog))

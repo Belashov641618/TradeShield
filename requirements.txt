@@ -2,6 +2,7 @@ redis
 psycopg2
 SQLAlchemy
 fastapi
+uvicorn[standard]
 pydantic
 celery
 aioredis

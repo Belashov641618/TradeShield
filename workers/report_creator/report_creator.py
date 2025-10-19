@@ -5,7 +5,10 @@ from json import dumps
 from fastapi import FastAPI
 from celery import Celery
 from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from typing import Union
+
+from postgres.declarations import Base
 
 
 REDIS_HOST          = str(os.getenv("REDIS_HOST",           "localhost"))
@@ -17,10 +20,14 @@ POSTGRES_USER       = str(os.getenv("POSTGRES_USER",        "root"))
 POSTGRES_PASSWORD   = str(os.getenv("POSTGRES_PASSWORD",    "password"))
 
 
-app = FastAPI(title="TradeShield")
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 celery = Celery("tasks", broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0", backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/1")
+
 engine = create_engine(f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}")
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+session = Session()
+
 
 @celery.task(bind=True)
 def report_creator(self, actions:dict[str,dict[str,Union[str,dict[str,Union[str,float]],bool,list[tuple[str,str,float]]]]]):
