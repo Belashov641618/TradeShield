@@ -42,7 +42,7 @@ def autocomplete(code:str="", name:str=""):
     if goods is not None:
         best_rarity, best_good = None, goods[0]
         for good in goods:
-            rarity = tables.Rarities.rarity(good.id, trigger=False)
+            rarity = tables.Rarities.rarity(good, trigger=False)
             if best_rarity is None or rarity > best_rarity:
                 best_rarity = rarity
                 best_good = good
