@@ -6,12 +6,13 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
 from celery import Celery
 from celery.result import AsyncResult
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, cast, String, exists
+from sqlalchemy.orm import sessionmaker
 from typing import Optional
 
-from workers.data_extractor import data_extractor
+from workers import data_extractor
 from workers.report_creator import report_creator
-
+from postgres.declarations import Base, tables
 
 REDIS_HOST          = str(os.getenv("REDIS_HOST",           "localhost"))
 REDIS_PORT          = int(os.getenv("REDIS_PORT",           6379))
@@ -26,15 +27,28 @@ app = FastAPI(title="TradeShield")
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0)
 celery = Celery("tasks", broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0", backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/1")
 engine = create_engine(f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DATABASE}")
-
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+session = Session()
 
 @app.get("/api/autocomplete")
 def autocomplete(code:str="", name:str=""):
-    # TODO Работа с базой данных Postgres через cursor
-    code_ = f"{code}60065"
-    name_ = f"{name}ый скот"
-    exist = len(code) > 6
-    return JSONResponse(dict(code=code_,name=name_,exist=exist))
+    if name != "":      goods = session.query(tables.Goods).filter(cast(tables.Goods.code,String).startswith(name)).all()
+    elif code != "":    goods = session.query(tables.Goods).filter(cast(tables.Goods.code,String).startswith(code)).all()
+    else:               goods = session.query(tables.Goods).all()
+    code_ = f""
+    name_ = f""
+    exists_ = session.query(exists().where(tables.Goods.code == code))
+    if goods is not None:
+        best_rarity, best_good = None, goods[0]
+        for good in goods:
+            rarity = tables.Rarities.rarity(good.id, trigger=False)
+            if best_rarity is None or rarity > best_rarity:
+                best_rarity = rarity
+                best_good = good
+        code_ = best_good.code
+        name_ = best_good.name
+    return JSONResponse(dict(code=code_,name=name_,exists=exists_))
 
 @app.post("/api/analyze")
 def analyze(code:str, name:str, inn:str):

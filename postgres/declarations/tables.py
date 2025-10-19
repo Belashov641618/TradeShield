@@ -1,9 +1,11 @@
 from __future__ import annotations
 from typing import Optional
-
+from datetime import datetime, timezone
+from math import exp
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, BigInteger, Float, Boolean, ForeignKey, UniqueConstraint, DateTime, Index, func
 
+from workers.data_extractor.data_extractor import session
 
 Base = declarative_base()
 
@@ -110,3 +112,26 @@ class Rarities(AbstractTable):
     amplitude   = Column(Float, nullable=False)
     attenuation = Column(Float, nullable=False)
     good        = relationship("Goods", back_populates="rarities")
+    @staticmethod
+    def rarity(good:Goods, trigger:bool=False):
+        rarity = session.query(Rarities).filter_by(good_id=good.id).first()
+        if rarity:
+            rarity.amplitude = rarity.amplitude*exp(-(datetime.now(timezone.utc)-rarity.timestamp).total_seconds()/rarity.attenuation) + 1.0 if trigger else 0.0
+            rarity.attenuation = 604800
+            rarity.source = "frontend"
+            rarity.timestamp = datetime.now(timezone.utc)
+            session.commit()
+            return rarity.amplitude
+        elif trigger:
+            session.add(Rarities(
+                good=good,
+                amplitude=1.0,
+                attenuation=604800,
+                source="frontend",
+                timestamp=datetime.now(timezone.utc)
+            ))
+            session.commit()
+            return 0.
+        else: return 0.
+
+
