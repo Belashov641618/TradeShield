@@ -1,8 +1,11 @@
 import os
 import io
 import redis
+import aioredis
+import json
+import asyncio
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse, StreamingResponse
 from celery import Celery
 from celery.result import AsyncResult
@@ -50,6 +53,7 @@ def autocomplete(code:str="", name:str=""):
         name_ = best_good.name
     return JSONResponse(dict(code=code_,name=name_,exists=exists_))
 
+
 @app.post("/api/analyze")
 def analyze(code:str, name:str, inn:str):
     task = data_extractor.delay(code, name, inn)
@@ -73,3 +77,30 @@ def download(job:str):
     if task.ready():
         return StreamingResponse(io.BytesIO(task.result), media_type="application/pdf", headers={"Content-Disposition":"attachment;filename=report.pdf"})
     return JSONResponse(dict(status=task.status))
+
+@app.websocket("/ws/{task_id}")
+async def websocket_status(ws:WebSocket, task_id:str):
+    await ws.accept()
+    channel = f"task_{task_id}"
+    redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+    aioredis_client = await aioredis.from_url(redis_url, decode_responses=True)
+    pubsub = aioredis_client.pubsub()
+    await pubsub.subscribe(channel)
+    try:
+        while True:
+            message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+            if message:
+                try: await ws.send_text(message["data"])
+                except Exception: continue
+            await asyncio.sleep(0.1)
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        print(f"WebSocket error for task {task_id}: {e}")
+    finally:
+        try:
+            await pubsub.unsubscribe(channel)
+            await pubsub.close()
+        except Exception: pass
+        await aioredis_client.close()
+        await ws.close()
